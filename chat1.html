@@ -13,6 +13,7 @@
             background-color: #f5f5f5;
             height: 100vh;
             overflow-y: auto;
+            position: relative;
         }
         .message {
             max-width: 70%;
@@ -52,6 +53,28 @@
             font-weight: bold;
             font-size: 1em;
             color: #333;
+        }
+        .pause-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: white;
+            background-color: #ff3b30;
+            transition: background-color 0.3s;
+            z-index: 10;
+        }
+        .pause-button.paused {
+            background-color: #34c759;
+        }
+        @media (max-width: 640px) {
+            .pause-button {
+                padding: 6px 12px;
+                font-size: 0.8em;
+            }
         }
     </style>
 </head>
@@ -438,22 +461,30 @@
         const App = () => {
             const [messages, setMessages] = React.useState([]);
             const [showEndMessage, setShowEndMessage] = React.useState(false);
+            const [isPaused, setIsPaused] = React.useState(false);
             const bottomRef = React.useRef(null);
+            const intervalRef = React.useRef(null);
 
             React.useEffect(() => {
                 let index = 0;
-                const interval = setInterval(() => {
-                    if (index < chatData.messages.length) {
-                        setMessages(prev => [...prev, { ...chatData.messages[index], index }]);
-                        index++;
-                    } else {
-                        setShowEndMessage(true);
-                        clearInterval(interval);
-                    }
-                }, 3000); // Increased delay to 3 seconds for readability
+                const startInterval = () => {
+                    intervalRef.current = setInterval(() => {
+                        if (index < chatData.messages.length) {
+                            setMessages(prev => [...prev, { ...chatData.messages[index], index }]);
+                            index++;
+                        } else {
+                            setShowEndMessage(true);
+                            clearInterval(intervalRef.current);
+                        }
+                    }, 3000); // 3 seconds delay for readability
+                };
 
-                return () => clearInterval(interval);
-            }, []);
+                if (!isPaused) {
+                    startInterval();
+                }
+
+                return () => clearInterval(intervalRef.current);
+            }, [isPaused]);
 
             React.useEffect(() => {
                 if (bottomRef.current) {
@@ -461,9 +492,21 @@
                 }
             }, [messages, showEndMessage]);
 
+            const togglePause = () => {
+                setIsPaused(prev => !prev);
+            };
+
             return React.createElement(
                 'div',
                 null,
+                React.createElement(
+                    'button',
+                    {
+                        className: `pause-button ${isPaused ? 'paused' : ''}`,
+                        onClick: togglePause
+                    },
+                    isPaused ? 'Resume' : 'Pause'
+                ),
                 messages.map((msg, idx) =>
                     React.createElement(Message, {
                         key: idx,
